@@ -30,7 +30,7 @@ protected:
 		int Range = 10000; //defines the range of the weapon., vary this for different class of weapons 
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-		float baseDamage = 20.0f;
+		float BaseDamage;
 
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
@@ -48,7 +48,10 @@ protected:
 
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	UParticleSystem* ImpactEffect;
+	UParticleSystem* DefaultImpactEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	UParticleSystem* FleshImpactEffect;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	UParticleSystem* TracerEffect;
@@ -61,8 +64,11 @@ protected:
 	int RateOfFire;
 
 	
+	
 public:	
 		UFUNCTION(BlueprintCallable, Category="Weapon")
 		virtual void Fire();
+
+		
 
 };

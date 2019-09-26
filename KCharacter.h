@@ -9,6 +9,8 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class UKHealthComponent;
+class USoundCue;
 
 UCLASS()
 class ROGUE_API AKCharacter : public ACharacter
@@ -44,6 +46,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USpringArmComponent* SpringArmComp;
 
+	UKHealthComponent* HealthComp;
 
 	UPROPERTY(EditAnywhere, Category = "Player", meta = (ClampMin = 0.1, ClampMax = 100))
 	float ZoomInSpeed;
@@ -74,6 +77,23 @@ protected:
 
 	float DefaultMaxWalkSpeed=900.0f;
 	
+	UFUNCTION()
+	void OnHealthChanged(UKHealthComponent* OwningHealthComp, float Health, float HealthData, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
+
+	UPROPERTY(BlueprintReadOnly, Category="Player")
+	bool bDied;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Player")
+	USoundCue* ZoomIn;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Player")
+	USoundCue* ZoomOut;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Player")
+	USoundCue* JumpSound;
+
+	void KJump();
+
 
 public:	
 	// Called every frame
