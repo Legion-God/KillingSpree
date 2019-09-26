@@ -9,6 +9,8 @@
 #include "Particles/ParticleSystem.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "PhysicalMaterials\PhysicalMaterial.h"
+#include "rogue.h"
 
 
 static int32 DebugWeaponDrawing = 0;
@@ -24,6 +26,10 @@ AKWeapon::AKWeapon()
 
 	MuzzleSocketName = "MuzzleSocket";
 	TracerTargetName = "Target";
+
+	BaseDamage = 20.0f;
+
+	
 }
 
 // Called when the game starts or when spawned
@@ -48,24 +54,52 @@ void AKWeapon::Fire()
 		QueryParams.AddIgnoredActor(MyOwner);
 		QueryParams.AddIgnoredActor(this); //ignores gun component
 		QueryParams.bTraceComplex = true;
+		QueryParams.bReturnPhysicalMaterial = true;
 
 		FVector TracerEndPoint = TraceEnd; //for the smoke beam end location (default)
 
 		FHitResult Hit; //stores the target hit data
-		if (GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TraceEnd, ECC_Visibility, QueryParams))
+		if (GetWorld()->LineTraceSingleByChannel(Hit, EyeLocation, TraceEnd, COLLISION_WEAPON, QueryParams))
 		{
 			//if blocking hit then process damage
 
-			AActor* HitActor = Hit.GetActor();																					
-			UGameplayStatics::ApplyPointDamage(HitActor, baseDamage, ShotDirection, Hit, MyOwner->GetInstigatorController(), this, DamageType);
+			AActor* HitActor = Hit.GetActor();	
+
+			EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(Hit.PhysMaterial.Get());
+
+			float ActualDamage = BaseDamage;
+			if (SurfaceType == SURFACE_FLESHVULNERABLE) //if headshot increase damage 5x
+			{
+				ActualDamage *= 5.0f;
+			}
+
+			UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, Hit, MyOwner->GetInstigatorController(), this, DamageType);
+
+			UParticleSystem* SelectedEffect = nullptr;
+
+			
+
+			switch (SurfaceType)
+			{
+			case SURFACE_FLESHDEFAULT:
+			case SURFACE_FLESHVULNERABLE:
+				SelectedEffect = FleshImpactEffect; 
+				break;
+			default:
+				SelectedEffect = DefaultImpactEffect;
+				break;
+			}
 
 			//play impact effect on hitting something
-			if (ImpactEffect)
+			if (SelectedEffect)
 			{
-				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), SelectedEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
 			}
 
 			TracerEndPoint = Hit.ImpactPoint; //required value for end location of tracer effect.
+
+			
+
 		}
 
 		if (DebugWeaponDrawing>0)

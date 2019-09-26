@@ -7,6 +7,11 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "Runtime/Engine/Classes/GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "rogue.h"
+#include "KHealthComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
 
 
 // Sets default values
@@ -21,6 +26,10 @@ AKCharacter::AKCharacter()
 	SpringArmComp->SetupAttachment(RootComponent);
 
 	GetMovementComponent()->GetNavAgentPropertiesRef().bCanCrouch = true;
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
+
+	HealthComp = CreateDefaultSubobject<UKHealthComponent>(TEXT("HealthComp"));
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComp"));
 	CameraComp->SetupAttachment(SpringArmComp);
@@ -59,6 +68,8 @@ void AKCharacter::BeginPlay()
 		CurrentWeapon->SetOwner(this);
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponAttachSocketName);
 	}
+
+	HealthComp->OnHealthChanged.AddDynamic(this, &AKCharacter::OnHealthChanged);
 }
 
 void AKCharacter::MoveForward(float Value)
@@ -91,11 +102,13 @@ void AKCharacter::EndCrouch()
 void AKCharacter::BeginZoom()
 {
 	bWantsToZoom = true;
+	UGameplayStatics::SpawnSoundAttached(ZoomIn, RootComponent);
 }
 
 void AKCharacter::EndZoom()
 {
 	bWantsToZoom = false;
+	UGameplayStatics::SpawnSoundAttached(ZoomIn, RootComponent);
 }
 
 
@@ -110,7 +123,7 @@ void AKCharacter::Fire()
 
 }
 
-//Sprint is BUGGYY
+
 
 void AKCharacter::Sprint()
 {
@@ -123,6 +136,27 @@ void AKCharacter::EndSprint()
 	GetCharacterMovement()->MaxWalkSpeed /= SprintMultiplier;
 }
 
+void AKCharacter::OnHealthChanged(UKHealthComponent* OwningHealthComp, float Health, float HealthData, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
+{
+	if (Health <= 0.0f && !bDied)
+	{
+		bDied = true;
+		GetMovementComponent()->StopMovementImmediately();
+
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		DetachFromControllerPendingDestroy();
+		SetLifeSpan(5.0f);
+	}
+}
+
+void AKCharacter::KJump()
+{
+	Jump();
+	UGameplayStatics::SpawnSoundAttached(JumpSound, RootComponent);
+
+}
+
 // Called every frame
 void AKCharacter::Tick(float DeltaTime)
 {
@@ -133,10 +167,12 @@ void AKCharacter::Tick(float DeltaTime)
 	if (bWantsToZoom)
 	{
 		TargetFOV = ZoomedFOV;
+	
 	}
 	else
 	{
 		TargetFOV = DefaultFOV;
+		
 	}
 
 	float NewFOV = FMath::FInterpTo(CameraComp->FieldOfView, TargetFOV, DeltaTime, ZoomInSpeed);
@@ -160,7 +196,7 @@ void AKCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	PlayerInputComponent->BindAction("UnCrouch", IE_Pressed, this, &AKCharacter::EndCrouch);
    
 
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AKCharacter::KJump);
 
 	PlayerInputComponent->BindAction("Zoom", IE_Pressed, this, &AKCharacter::BeginZoom);
 	PlayerInputComponent->BindAction("Zoom", IE_Released, this, &AKCharacter::EndZoom);
